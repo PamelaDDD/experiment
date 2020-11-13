@@ -10,7 +10,8 @@ import jieba
 import pickle
 import sklearn
 from sklearn.model_selection import train_test_split
-
+from translation.config import *
+import operator
 #load data files
 SOS_token = 0
 EOS_token = 1
@@ -20,8 +21,8 @@ class Lang:
         self.name = name
         self.word2index = {}
         self.word2count = {}
-        self.index2word = {0:"SOS",1:"EOS"}
-        self.n_words = 2
+        self.index2word = {0:"<PAD>",1:"<SOS>",2:"<EOS>",3:"<UNK>"}
+        self.n_words = 4  # count SOS and EOS
         self.max_length = -1
         self.sentence_lengths = []
 
@@ -102,18 +103,23 @@ eng_prefixes = (
     "they are","they re "
 )
 
-def filterPair(p):
-    return len(jieba.lcut(p[0])) < MAX_LENGTH and len(p[1].split(' ')) < MAX_LENGTH and \
-        p[1].startswith(eng_prefixes)
+# def filterPair(p):
+#     return len(jieba.lcut(p[0])) < MAX_LENGTH and len(p[1].split(' ')) < MAX_LENGTH and \
+#         p[1].startswith(eng_prefixes)
 
 def filterPairs(pairs):
-    return [pair for pair in pairs if filterPair(pair)]
+    filtered_pairs = []
+    for pair in pairs:
+        if len(pair[0].split()) >= MIN_LENGTH and len(pair[0].split()) <= MAX_LENGTH \
+            and len(pair[1].split()) >= MIN_LENGTH and len(pair[1].split()) <= MAX_LENGTH:
+            filtered_pairs.append(pair)
+    return filtered_pairs
 
 def prepareData(lang1,lang2,mode='train',reverse=False):
     input_lang,output_lang,pairs = readLangs(lang1,lang2,mode,reverse)
     print("Read %d sentence pairs" % len(pairs))
-    # pairs = filterPairs(pairs)
-    # print("Terimmed to %s sentence pairs" % len(pairs))
+    pairs = filterPairs(pairs)
+    print("Terimmed to %s sentence pairs" % len(pairs))
     print("Counting word...")
     for pair in pairs:
         print(pair[0])
@@ -124,8 +130,30 @@ def prepareData(lang1,lang2,mode='train',reverse=False):
     print(output_lang.name,output_lang.n_words)
     return input_lang,output_lang,pairs
 
+def build_topwordVocab(lang,vocab_size):
+    print("build vocabulary by top {} frequent word...".format(vocab_size))
+    sorted_word2Count = sorted(lang.word2count.items(),key=operator.itemgetter(1),reverse=True)
+    sorted_words = [x[0] for x in sorted_word2Count[:vocab_size]]
+    lang.word2index = {}
+    lang.index2word = {}
+    lang.index2word[0] = '<PAD>'
+    lang.index2word[1] = '<SOS>'
+    lang.index2word[2] = '<EOS>'
+    lang.index2word[3] = '<UNK>'
+    for ind,word in enumerate(sorted_words):
+        lang.word2index[word] = ind + 4
+        lang.index2word[ind+4] = word
+    lang.n_words = len(lang.index2word)
+    print(lang.name,lang.n_words)
+    return lang
+
+
+
+
 if __name__ == '__main__':
     input_lang,output_lang,pairs = prepareData('en','ch','train',True)
+    input_lang = build_topwordVocab(input_lang,vocab_size=source_vocab_size)
+    output_lang = build_topwordVocab(output_lang,vocab_size=target_vocab_size)
     with open('./data/input_lang_train.pkl',"wb") as f:
         pickle.dump(input_lang,f)
     with open('./data/output_lang_train.pkl',"wb") as f:
@@ -137,7 +165,8 @@ if __name__ == '__main__':
     print('chinese train dataset max length is {}'.format(input_lang.max_length))
     print('chinese train dataset avg length is {}'.format(input_lang.getAverageLength()))
     print(random.choice(pairs))
-
+    _,_,test_pairs = readLangs('en','ch','test',reverse=True)
+    test_pairs = filterPairs(test_pairs)
 
 
 

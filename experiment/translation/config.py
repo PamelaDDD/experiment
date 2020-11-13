@@ -1,13 +1,31 @@
-
-data_path = "./data/cmn.txt"
-store_model_path = "./result/"
-max_output_len = 45   # 输出句子的最大长度
-batch_size = 64
-emb_dim = 256
-hid_dim = 512
+import torch
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+PAD_token = 0
+SOS_token = 1
+EOS_token = 2
+hidden_size = 512
+dropout_p = 0.1
+teacher_forcing_ratio = 1
+BATCH_SIZE = 64
+MIN_LENGTH = 3
+MAX_LENGTH = 60
+source_vocab_size = 4800
+target_vocab_size = 50000
 n_layers = 4
-dropout = 0.5
-learning_rate = 0.0001
-teacher_forcing_ratio = 0.5
-summary_steps = 6000
+lr_rate_en = 0.0001
+lr_rate_de = 0.0005
+lr_decay = True
+gamma_encoder = 0.9
+gamma_decoder = 0.9
+n_epochs = 20
+plot_every = 100
+print_every = 100
+evaluate_every = 100
+attn_model = 'dot'
+Attention = True
+search_method = 'greedy'
+beam_size = 10
+n_best = 5
+sentence_ratio = True
+
 
